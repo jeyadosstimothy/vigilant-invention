@@ -9,7 +9,8 @@ def create_directory(path):
         os.makedirs(path)
 
 
-def get_checkpoint_file(dataset_name):
+def get_checkpoint_file(dataset_name, network_name):
     dataset_directory = os.path.join(CHECKPOINT_DIRECTORY, dataset_name)
-    create_directory(dataset_directory)
-    return os.path.join(dataset_directory, 'epoch{epoch:03d}-{val_acc:.3f}.hdf5')
+    directory = os.path.join(dataset_directory, network_name)
+    create_directory(directory)
+    return os.path.join(directory, 'ep{epoch:03d}-{val_acc:.3f}.hdf5')

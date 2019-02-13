@@ -1,11 +1,19 @@
 from abc import ABC, abstractmethod
-from keras import datasets, utils
+from keras import datasets, utils, backend as K
 import numpy as np
-import cv2
+import cv2, os
+import scipy.io as sio
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+
+def resize_image(img, dim=(32, 32)):
+    return cv2.resize(img, dim)
 
 
 def resize_images(dataset, dim=(32, 32)):
-    return np.array([cv2.resize(img, dim) for img in dataset])
+    return np.array([resize_image(img, dim) for img in dataset])
+
 
 class Dataset(ABC):
     train_x = None
@@ -27,29 +35,34 @@ class Dataset(ABC):
         pass
 
     @property
-    @abstractmethod
     def instance_shape(self):
-        pass
+        return self.train_x.shape[1:]
 
+
+# TODO: subtract pixel mean to improve accuracy
 # Keras datasets can be found here: /home/$USER/.keras/datasets
 class Mnist(Dataset):
     def __init__(self):
         (train_x, train_y), (test_x, test_y) = datasets.mnist.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
+        #train_x -= np.mean(train_x, axis=0, dtype=train_x.dtype)
+        #test_x -= np.mean(test_x, axis=0, dtype=test_x.dtype)
         train_x = train_x.reshape(*train_x.shape, 1)
         test_x = test_x.reshape(*test_x.shape, 1)
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
+        if K.image_data_format() == 'channels_first':
+            train_x = train_x.reshape(train_x.shape[0], *reversed(train_x.shape[1:]))
+            test_x = test_x.reshape(test_x.shape[0], *reversed(test_x.shape[1:]))
+        else:
+            train_x = train_x.reshape(*train_x.shape)
+            test_x = test_x.reshape(*test_x.shape)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
 
     @property
     def num_classes(self):
         return 10
-
-    @property
-    def instance_shape(self):
-        return self.train_x.shape[1:]
 
 
 class FashionMnist(Dataset):
@@ -60,16 +73,18 @@ class FashionMnist(Dataset):
         test_x = test_x.reshape(*test_x.shape, 1)
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
+        if K.image_data_format() == 'channels_first':
+            train_x = train_x.reshape(train_x.shape[0], *reversed(train_x.shape[1:]))
+            test_x = test_x.reshape(test_x.shape[0], *reversed(test_x.shape[1:]))
+        else:
+            train_x = train_x.reshape(*train_x.shape)
+            test_x = test_x.reshape(*test_x.shape)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
 
     @property
     def num_classes(self):
         return 10
-
-    @property
-    def instance_shape(self):
-        return self.train_x.shape[1:]
 
 
 class Cifar10(Dataset):
@@ -84,10 +99,6 @@ class Cifar10(Dataset):
     def num_classes(self):
         return 10
 
-    @property
-    def instance_shape(self):
-        return self.train_x.shape[1:]
-
 
 class Cifar100(Dataset):
     def __init__(self):
@@ -101,7 +112,136 @@ class Cifar100(Dataset):
     def num_classes(self):
         return 100
 
-    @property
-    def instance_shape(self):
-        return self.train_x.shape[1:]
 
+class SVHN(Dataset):
+    def __init__(self):
+        (train_x, train_y)  = self.load_data('datasets/SVHN/train_32x32.mat')
+        (test_x, test_y)  = self.load_data('datasets/SVHN/test_32x32.mat')
+        if K.image_data_format() == 'channels_first':
+            train_x = train_x.reshape(train_x.shape[0], *reversed(train_x.shape[1:]))
+            test_x = test_x.reshape(test_x.shape[0], *reversed(test_x.shape[1:]))
+        else:
+            train_x = train_x.reshape(*train_x.shape)
+            test_x = test_x.reshape(*test_x.shape)
+        train_y = utils.to_categorical(train_y, self.num_classes)
+        test_y = utils.to_categorical(test_y, self.num_classes)
+        self.train_x, self.train_y = train_x, train_y
+        self.test_x, self.test_y = test_x, test_y
+
+    def load_data(self, path):
+        train_dict = sio.loadmat(path)
+        X = np.asarray(train_dict['X'])
+        X_t = []
+        for i in range(X.shape[3]):
+            X_t.append(X[:,:,:,i])
+        X_t = np.asarray(X_t)
+
+        Y_t = train_dict['y']
+        for i in range(len(Y_t)):
+            if Y_t[i]%10 == 0:
+                Y_t[i] = 0
+        return (X_t,Y_t)
+
+    @property
+    def num_classes(self):
+        return 10
+
+
+class GTSRB(Dataset):
+    def __init__(self):
+        (train_x, train_y), (test_x, test_y)  = self.load_data('datasets/GTSRB/Final_Training/Images')
+        train_x, test_x = resize_images(train_x), resize_images(test_x)
+        if K.image_data_format() == 'channels_first':
+            train_x = train_x.reshape(train_x.shape[0], *reversed(train_x.shape[1:]))
+            test_x = test_x.reshape(test_x.shape[0], *reversed(test_x.shape[1:]))
+        else:
+            train_x = train_x.reshape(*train_x.shape)
+            test_x = test_x.reshape(*test_x.shape)
+        train_y = utils.to_categorical(train_y, self.num_classes)
+        test_y = utils.to_categorical(test_y, self.num_classes)
+        self.train_x, self.train_y = train_x, train_y
+        self.test_x, self.test_y = test_x, test_y
+
+    def load_data(self, path):
+        '''Reads traffic sign data for German Traffic Sign Recognition Benchmark.
+
+        Arguments: path to the traffic sign data, for example './GTSRB/Training'
+        Returns:   list of images, list of corresponding labels'''
+        train_x = [] # images
+        train_y = [] # corresponding labels
+        # loop over all 42 classes
+        for c in range(0,43):
+            prefix = path + '/' + format(c, '05d') + '/' # subdirectory for class
+            # loop over all images in current annotations file
+            for file in os.listdir(prefix):
+                if file.endswith('.ppm'):
+                    train_x.append(plt.imread(os.path.join(prefix, file))) # the 1th column is the filename
+                    train_y.append(c) # the 8th column is the label
+
+        train_x, train_y = np.array(train_x), np.array(train_y)
+        train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.2)
+
+        return (train_x, train_y), (test_x, test_y)
+
+    @property
+    def num_classes(self):
+        return 43
+
+
+class Flowers102(Dataset):
+    def load_data(self, path):
+        train_x = []
+        train_y = sio.loadmat(os.path.join(path, 'imagelabels.mat'))['labels'][0] - 1
+
+        image_dir = os.path.join(path, 'jpg')
+        for file in os.listdir(image_dir):
+            img = plt.imread(os.path.join(image_dir, file))
+            train_x.append(resize_image(img))
+
+        train_x = np.array(train_x)
+
+        train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.2)
+        return (train_x, train_y), (test_x, test_y)
+
+    def __init__(self):
+        (train_x, train_y),(test_x, test_y)  = self.load_data('datasets/flowers-102/')
+        train_x, test_x = resize_images(train_x), resize_images(test_x)
+        train_y = utils.to_categorical(train_y, self.num_classes)
+        test_y = utils.to_categorical(test_y, self.num_classes)
+        self.train_x, self.train_y = train_x, train_y
+        self.test_x, self.test_y = test_x, test_y
+
+    @property
+    def num_classes(self):
+        return 102
+
+
+class Flowers(Dataset):
+    def load_data(self, path):
+        train_x = []
+        train_y = []
+
+        for file in os.listdir(path):
+            classfolder = os.path.join(path, file)
+            if os.path.isdir(classfolder):
+                for image in os.listdir(classfolder):
+                    img = plt.imread(os.path.join(classfolder, image))
+                    train_x.append(resize_image(img))
+                    train_y.append(file)
+
+        train_x = np.array(train_x)
+        train_y = LabelEncoder().fit_transform(train_y)
+        train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.2)
+        return (train_x, train_y), (test_x, test_y)
+
+    def __init__(self):
+        (train_x, train_y),(test_x, test_y)  = self.load_data('datasets/flowers/flower_photos')
+        train_x, test_x = resize_images(train_x), resize_images(test_x)
+        train_y = utils.to_categorical(train_y, self.num_classes)
+        test_y = utils.to_categorical(test_y, self.num_classes)
+        self.train_x, self.train_y = train_x, train_y
+        self.test_x, self.test_y = test_x, test_y
+
+    @property
+    def num_classes(self):
+        return 5
