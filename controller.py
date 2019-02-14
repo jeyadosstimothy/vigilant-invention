@@ -57,7 +57,7 @@ class Controller:
 
         if self._db_exists:
             self.db = Database.load(DATABASE_PATH, self)
-            datasets = [dataset for dataset in datasets if dataset.__name__ not in self.db]
+            datasets = [dataset for dataset in datasets if dataset.name not in self.db]
         else:
             self.db = Database(self)
         self.populate_database(datasets)
@@ -78,7 +78,7 @@ class Controller:
             print('Finding optimal Model for %s dataset' % dataset.name)
             self.trainer.set_dataset(dataset)
             self.trainer.evaluate()
-            self.db[dataset.name] = (dataset_character, self.trainer.model_path)
+            self.db[dataset.name] = (dataset_character, self.trainer.best_model_path)
             self.db.save(DATABASE_PATH)
 
     def find_model(self, dataset, transfer_learner):
@@ -86,12 +86,11 @@ class Controller:
         dataset_character = self.characterizer.characterize(dataset)
         nearest_dataset = self.db.get_nearest_neighbour(dataset_character)
         print('Found nearest_dataset:', nearest_dataset)
-        nearest_dataset_character, model_path = self.db[nearest_dataset]
-        model = load_model(model_path)
+        nearest_dataset_character, best_model_path = self.db[nearest_dataset]
         transfer_learner.set_dataset(dataset)
-        transfer_learner.transfer_from_model(model)
+        transfer_learner.transfer_from_model(best_model_path)
         transfer_learner.evaluate()
-        self.db[dataset.name] = (dataset_character, transfer_learner.model_path)
+        self.db[dataset.name] = (dataset_character, transfer_learner.best_model_path)
         self.db.save(DATABASE_PATH)
         # TODO: ability to create trainer from keras model
         return transfer_learner

@@ -1,16 +1,17 @@
 import math
-from utilities import get_checkpoint_file
+from utilities import get_checkpoint_file, copy_and_overwrite
 from keras import models, layers, optimizers
-from keras.optimizers import Adam
+from keras.optimizers import Adam, SGD
 from keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
 from abc import ABC, abstractmethod
 import numpy as np
 from resnet import resnet
+from ENAS_Keras.ENAS import EfficientNeuralArchitectureSearch
+from ENAS_Keras.src.utils import sgdr_learning_rate
 
-
-DEFAULT_EPOCHS = 8
+DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 128
-
+DEFAULT_ENAS_BATCH_SIZE = 32
 
 def find_highest_acc(history):
     max_index, max_acc = None, 0
@@ -52,15 +53,19 @@ class Trainer(ABC):
         return get_checkpoint_file(self._dataset.name, type(self).__name__)
 
     @property
+    def checkpoint_directory(self):
+        return get_checkpoint_file(self._dataset.name, type(self).__name__, is_dir=True)
+
+    @property
     def val_acc(self):
         if self._val_acc is None:
             raise Exception('Model should be evaluated using evaluate() before accessing val_acc')
         return self._val_acc
 
     @property
-    def model_path(self):
+    def best_model_path(self):
         if self._best_epoch_num is None:
-            raise Exception('Model should be evaluated using evaluate() before accessing model_path')
+            raise Exception('Model should be evaluated using evaluate() before accessing best_model_path')
         return self.checkpoint_file.format(epoch=self._best_epoch_num, val_acc=self.val_acc)
 
     def evaluate(self, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_BATCH_SIZE):
@@ -140,11 +145,14 @@ class TransferLearner(Trainer):
             self.set_dataset(dataset)
             if model is not None:
                 self.transfer_from_model(model)
+        if model is not None:
+            raise Exception('dataset should be specified')
 
     def set_dataset(self, dataset):
         self._dataset = dataset
 
-    def transfer_from_model(self, model):
+    def transfer_from_model(self, model_path):
+        model = load_model(model_path)
         self._model = self.build(model)
 
     @abstractmethod
@@ -164,3 +172,79 @@ class StandardTransferLearner(TransferLearner):
                       optimizer=Adam(lr=lr_schedule(0)),
                       metrics=['accuracy'])
         return model
+
+
+class EnasTrainer(Trainer):
+    @property
+    def best_model_path(self):
+        return self.checkpoint_directory
+
+    def build(self):
+        lr_schedule = sgdr_learning_rate(n_Max=0.05, n_min=0.001, ranges=1, init_cycle=1)
+
+        model = EfficientNeuralArchitectureSearch(
+            x_train=self._dataset.train_x,
+            y_train=self._dataset.train_y,
+            x_test=self._dataset.test_x,
+            y_test=self._dataset.test_y,
+            child_network_name=self._dataset.name,
+            child_classes=self._dataset.num_classes,
+            child_input_shape=self._dataset.instance_shape,
+            num_nodes=5,
+            num_opers=5,
+            controller_lstm_cell_units=32,
+            controller_baseline_decay=0.99,
+            controller_opt=Adam(lr=0.00035, decay=1e-3, amsgrad=True),
+            controller_batch_size=1,
+            controller_callbacks=[
+                EarlyStopping(monitor='val_loss', patience=1, verbose=1, mode='auto')
+            ],
+            controller_temperature=5.0,
+            controller_tanh_constant=2.5,
+            child_init_filters=32,
+            child_network_definition=["N", "R"],
+            child_opt_loss='categorical_crossentropy',
+            child_opt=SGD(lr=0.05, nesterov=True),
+            child_opt_metrics=['accuracy'],
+            child_epochs=len(lr_schedule),
+            child_lr_scedule=lr_schedule,
+            start_from_record=True,
+            run_on_jupyter=False,
+            initialize_child_weight_directory=False,
+            save_to_disk=True,
+            set_from_dict=True,
+            working_directory=self.checkpoint_directory
+        )
+
+        return model
+
+    def evaluate(self, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_ENAS_BATCH_SIZE):
+        if self._dataset is None:
+            raise Exception('dataset should be set using set_dataset()')
+
+        # number of samples of child networks is found from nt
+        # i.e., epochs != number of search epochs of ENAS (number of child networks trained)
+        self._model.controller_epochs = epochs
+        self._model.child_batch_size = batch_size
+        self._model.child_val_batch_size = batch_size,
+        self._model.data_gen = self._dataset.get_data_gen(),
+        self._model.data_flow_gen = self._dataset.get_data_flow_gen(batch_size)
+
+
+        self._model.search_neural_architecture()
+
+        print(self._model.best_normal_cell)
+        print(self._model.best_reduction_cell)
+
+        self._model.train_best_cells(child_epochs=epochs)
+
+        self._best_epoch_num, self._val_acc = self._model.best_epoch_num, self._model.best_val_acc
+
+
+class EnasTransferLearner(EnasTrainer, TransferLearner):
+    def transfer_from_model(self, model_path):
+        copy_and_overwrite(model_path, self.checkpoint_directory)
+        self._model = self.build()
+
+    def evaluate(self, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_BATCH_SIZE):
+        EnasTrainer.evaluate(self, epochs, batch_size)

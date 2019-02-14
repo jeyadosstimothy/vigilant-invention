@@ -19,18 +19,18 @@ test_dataset = Cifar100()
 controller = Controller(
                 datasets=DATASETS,
                 characterizer=ProbenetCharacterizer(),
-                trainer=ResnetTrainer(),
+                trainer=EnasTrainer(),
             )
 
 
 model = controller.find_model(
             dataset=test_dataset,
-            transfer_learner=StandardTransferLearner()
+            transfer_learner=EnasTransferLearner()
         )
 
 print('Transfer Learning accuracy: ', model.val_acc)
 
-trainer = ResnetTrainer(test_dataset)
+trainer = EnasTrainer(test_dataset)
 trainer.evaluate()
 
 print('Manual Training accuracy: ', trainer.val_acc)

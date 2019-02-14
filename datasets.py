@@ -6,6 +6,8 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+from ENAS_Keras.src.utils import *
+from keras.preprocessing.image import ImageDataGenerator
 
 def resize_image(img, dim=(32, 32)):
     return cv2.resize(img, dim)
@@ -37,6 +39,18 @@ class Dataset(ABC):
     @property
     def instance_shape(self):
         return self.train_x.shape[1:]
+
+    def get_data_gen(self):
+        return ImageDataGenerator(
+            rotation_range=90,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            horizontal_flip=True,
+            preprocessing_function=get_random_eraser(v_l=0, v_h=255))
+
+    def get_data_flow_gen(self, batch_size):
+        return MixupGenerator(
+            self.train_x, self.train_y, batch_size=batch_size, alpha=0.2, datagen=self.get_data_gen())()
 
 
 # TODO: subtract pixel mean to improve accuracy
