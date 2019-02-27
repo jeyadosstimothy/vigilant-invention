@@ -227,8 +227,8 @@ class EnasTrainer(Trainer):
         self._model.controller_epochs = epochs
         self._model.child_batch_size = batch_size
         self._model.child_val_batch_size = batch_size,
-        self._model.data_gen = self._dataset.get_data_gen(),
-        self._model.data_flow_gen = self._dataset.get_data_flow_gen(batch_size)
+        #self._model.data_gen = self._dataset.get_data_gen(),
+        #self._model.data_flow_gen = self._dataset.get_data_flow_gen(batch_size)
 
 
         self._model.search_neural_architecture()
