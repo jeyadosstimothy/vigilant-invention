@@ -25,7 +25,7 @@ class Dataset(ABC):
     test_y = None
 
     @abstractmethod
-    def __init__(self):
+    def __init__(self, path):
         pass
 
     @property
@@ -57,7 +57,7 @@ class Dataset(ABC):
 # TODO: subtract pixel mean to improve accuracy
 # Keras datasets can be found here: /home/$USER/.keras/datasets
 class Mnist(Dataset):
-    def __init__(self):
+    def __init__(self, path='./'):
         (train_x, train_y), (test_x, test_y) = datasets.mnist.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         #train_x -= np.mean(train_x, axis=0, dtype=train_x.dtype)
@@ -81,7 +81,7 @@ class Mnist(Dataset):
 
 
 class FashionMnist(Dataset):
-    def __init__(self):
+    def __init__(self, path='./'):
         (train_x, train_y), (test_x, test_y) = datasets.fashion_mnist.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         train_x = train_x.reshape(*train_x.shape, 1)
@@ -103,7 +103,7 @@ class FashionMnist(Dataset):
 
 
 class Cifar10(Dataset):
-    def __init__(self):
+    def __init__(self, path='./'):
         (train_x, train_y), (test_x, test_y) = datasets.cifar10.load_data()
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
@@ -116,7 +116,7 @@ class Cifar10(Dataset):
 
 
 class Cifar100(Dataset):
-    def __init__(self):
+    def __init__(self, path='./'):
         (train_x, train_y), (test_x, test_y) = datasets.cifar100.load_data(label_mode='fine')
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
