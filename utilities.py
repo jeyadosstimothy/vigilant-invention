@@ -21,3 +21,8 @@ def get_checkpoint_file(dataset_name, network_name, is_dir=False):
 
 def copy_and_overwrite(from_path, to_path):
     copy_tree(from_path, to_path)
+
+
+def delete_file(filename):
+    if os.path.isfile(filename):
+        os.remove(filename)

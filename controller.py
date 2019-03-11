@@ -22,7 +22,7 @@ class Database:
         return value in self._db[self._controller.name]
 
     def __repr__(self):
-        return self._db
+        return str(self._db)
 
     @classmethod
     def load(self, path, controller):
@@ -57,7 +57,7 @@ class Controller:
 
         if self._db_exists:
             self.db = Database.load(DATABASE_PATH, self)
-            datasets = [dataset for dataset in datasets if dataset.name not in self.db]
+            datasets = [dataset for dataset in datasets if dataset.__name__ not in self.db]
         else:
             self.db = Database(self)
         self.populate_database(datasets)

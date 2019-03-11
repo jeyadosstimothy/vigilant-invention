@@ -1,5 +1,5 @@
-import math
-from utilities import get_checkpoint_file, copy_and_overwrite
+import math, os
+from utilities import get_checkpoint_file, copy_and_overwrite, delete_file
 from keras import models, layers, optimizers
 from keras.optimizers import Adam, SGD
 from keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
@@ -9,9 +9,8 @@ from resnet import resnet
 from ENAS_Keras.ENAS import EfficientNeuralArchitectureSearch
 from ENAS_Keras.src.utils import sgdr_learning_rate
 
-DEFAULT_EPOCHS = 1
-DEFAULT_BATCH_SIZE = 128
-DEFAULT_ENAS_BATCH_SIZE = 32
+DEFAULT_EPOCHS = 5
+DEFAULT_BATCH_SIZE = 256
 
 def find_highest_acc(history):
     max_index, max_acc = None, 0
@@ -180,45 +179,24 @@ class EnasTrainer(Trainer):
         return self.checkpoint_directory
 
     def build(self):
-        lr_schedule = sgdr_learning_rate(n_Max=0.05, n_min=0.001, ranges=1, init_cycle=1)
-
+        nt = sgdr_learning_rate(n_Max=0.05, n_min=0.001, ranges=1, init_cycle=10)
         model = EfficientNeuralArchitectureSearch(
             x_train=self._dataset.train_x,
             y_train=self._dataset.train_y,
             x_test=self._dataset.test_x,
             y_test=self._dataset.test_y,
+            child_epochs=len(nt),
+            child_lr_scedule=nt,
             child_network_name=self._dataset.name,
             child_classes=self._dataset.num_classes,
             child_input_shape=self._dataset.instance_shape,
-            num_nodes=5,
-            num_opers=5,
-            controller_lstm_cell_units=32,
-            controller_baseline_decay=0.99,
-            controller_opt=Adam(lr=0.00035, decay=1e-3, amsgrad=True),
-            controller_batch_size=1,
-            controller_callbacks=[
-                EarlyStopping(monitor='val_loss', patience=1, verbose=1, mode='auto')
-            ],
-            controller_temperature=5.0,
-            controller_tanh_constant=2.5,
+            working_directory=self.checkpoint_directory,
             child_init_filters=32,
-            child_network_definition=["N", "R"],
-            child_opt_loss='categorical_crossentropy',
-            child_opt=SGD(lr=0.05, nesterov=True),
-            child_opt_metrics=['accuracy'],
-            child_epochs=len(lr_schedule),
-            child_lr_scedule=lr_schedule,
-            start_from_record=True,
-            run_on_jupyter=False,
-            initialize_child_weight_directory=False,
-            save_to_disk=True,
-            set_from_dict=True,
-            working_directory=self.checkpoint_directory
         )
 
         return model
 
-    def evaluate(self, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_ENAS_BATCH_SIZE):
+    def evaluate(self, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_BATCH_SIZE):
         if self._dataset is None:
             raise Exception('dataset should be set using set_dataset()')
 
@@ -244,6 +222,7 @@ class EnasTrainer(Trainer):
 class EnasTransferLearner(EnasTrainer, TransferLearner):
     def transfer_from_model(self, model_path):
         copy_and_overwrite(model_path, self.checkpoint_directory)
+        delete_file(os.path.join(self.checkpoint_directory, '{}_record.csv'.format(self._dataset.name)))
         self._model = self.build()
 
     def evaluate(self, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_BATCH_SIZE):

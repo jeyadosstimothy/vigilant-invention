@@ -14,7 +14,5 @@ class ProbenetCharacterizer(Characterizer):
 
     def characterize(self, dataset):
         self.probenet.set_dataset(dataset)
-        self.probenet.evaluate(epochs=3, batch_size=128)
+        self.probenet.evaluate()
         return self.probenet.val_acc
-
-
