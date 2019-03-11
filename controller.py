@@ -5,6 +5,8 @@ from utilities import create_directory
 
 DATABASE_PATH = 'db.json'
 
+DEFAULT_EPOCHS = 5
+DEFAULT_BATCH_SIZE = 256
 
 class Database:
     def __init__(self, controller):
@@ -51,10 +53,13 @@ class Database:
 
 
 class Controller:
-    def __init__(self, datasets, characterizer, trainer, dataset_directory='datasets', processed_datasets_dir='processed_datasets'):
+    def __init__(self, datasets, characterizer, trainer, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_BATCH_SIZE,
+                    dataset_directory='datasets', processed_datasets_dir='processed_datasets'):
         self.characterizer = characterizer
         self.trainer = trainer
         self.dataset_directory = dataset_directory
+        self.epochs = epochs
+        self.batch_size = batch_size
 
         if self._db_exists:
             self.db = Database.load(DATABASE_PATH, self)
@@ -83,10 +88,10 @@ class Controller:
                 dataset = datasetClass(path=self.dataset_directory)
                 pickle.dump(dataset, open(processed_dataset_path, 'wb'))
             print('Probing %s dataset' % dataset.name)
-            dataset_character = self.characterizer.characterize(dataset)
+            dataset_character = self.characterizer.characterize(dataset, epochs=self.epochs, batch_size=self.batch_size)
             print('Finding optimal Model for %s dataset' % dataset.name)
             self.trainer.set_dataset(dataset)
-            self.trainer.evaluate()
+            self.trainer.evaluate(epochs=self.epochs, batch_size=self.batch_size)
             self.db[dataset.name] = (dataset_character, self.trainer.best_model_path)
             self.db.save(DATABASE_PATH)
 
@@ -98,7 +103,7 @@ class Controller:
         nearest_dataset_character, best_model_path = self.db[nearest_dataset]
         transfer_learner.set_dataset(dataset)
         transfer_learner.transfer_from_model(best_model_path)
-        transfer_learner.evaluate()
+        transfer_learner.evaluate(epochs=self.epochs, batch_size=self.batch_size)
         self.db[dataset.name] = (dataset_character, transfer_learner.best_model_path)
         self.db.save(DATABASE_PATH)
         # TODO: ability to create trainer from keras model

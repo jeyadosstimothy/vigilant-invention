@@ -9,8 +9,6 @@ from resnet import resnet
 from ENAS_Keras.ENAS import EfficientNeuralArchitectureSearch
 from ENAS_Keras.src.utils import sgdr_learning_rate
 
-DEFAULT_EPOCHS = 5
-DEFAULT_BATCH_SIZE = 256
 
 def find_highest_acc(history):
     max_index, max_acc = None, 0
@@ -67,7 +65,7 @@ class Trainer(ABC):
             raise Exception('Model should be evaluated using evaluate() before accessing best_model_path')
         return self.checkpoint_file.format(epoch=self._best_epoch_num, val_acc=self.val_acc)
 
-    def evaluate(self, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_BATCH_SIZE):
+    def evaluate(self, epochs, batch_size):
         if self._dataset is None:
             raise Exception('dataset should be set using set_dataset()')
         callbacks = [
@@ -196,7 +194,7 @@ class EnasTrainer(Trainer):
 
         return model
 
-    def evaluate(self, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_BATCH_SIZE):
+    def evaluate(self, epochs, batch_size):
         if self._dataset is None:
             raise Exception('dataset should be set using set_dataset()')
 
@@ -226,5 +224,5 @@ class EnasTransferLearner(EnasTrainer, TransferLearner):
         delete_file(os.path.join(self.checkpoint_directory, '{}_record.csv'.format(self._dataset.name)))
         self._model = self.build()
 
-    def evaluate(self, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_BATCH_SIZE):
+    def evaluate(self, epochs, batch_size):
         EnasTrainer.evaluate(self, epochs, batch_size)

@@ -145,7 +145,7 @@ class SVHN(Dataset):
         self.test_x, self.test_y = test_x, test_y
 
     def load_data(self, path):
-        train_dict = sio.loadmat(self.path)
+        train_dict = sio.loadmat(path)
         X = np.asarray(train_dict['X'])
         X_t = []
         for i in range(X.shape[3]):
