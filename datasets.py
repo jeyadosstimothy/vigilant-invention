@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from keras import datasets, utils, backend as K
 import numpy as np
-import cv2, os
+import cv2, os, zipfile
 import scipy.io as sio
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -163,7 +163,7 @@ class SVHN(Dataset):
 
 class GTSRB(Dataset):
     def __init__(self):
-        (train_x, train_y), (test_x, test_y)  = self.load_data('datasets/GTSRB/Final_Training/Images')
+        (train_x, train_y), (test_x, test_y)  = self.load_data('datasets/GTSRB/')
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         if K.image_data_format() == 'channels_first':
             train_x = train_x.reshape(train_x.shape[0], *reversed(train_x.shape[1:]))
@@ -183,13 +183,13 @@ class GTSRB(Dataset):
         Returns:   list of images, list of corresponding labels'''
         train_x = [] # images
         train_y = [] # corresponding labels
-        # loop over all 42 classes
-        for c in range(0,43):
-            prefix = path + '/' + format(c, '05d') + '/' # subdirectory for class
-            # loop over all images in current annotations file
-            for file in os.listdir(prefix):
-                if file.endswith('.ppm'):
-                    train_x.append(plt.imread(os.path.join(prefix, file))) # the 1th column is the filename
+
+        with zipfile.ZipFile(os.path.join(path, 'GTSRB_Final_Training_Images.zip')) as archive:
+            prefix = 'GTSRB/Final_Training/Images/'
+            for path in archive.namelist():
+                if path.endswith('.ppm'):
+                    c = int(path[len(prefix):len(prefix) + 5])
+                    train_x.append(plt.imread(archive.open(path))) # the 1th column is the filename
                     train_y.append(c) # the 8th column is the label
 
         train_x, train_y = np.array(train_x), np.array(train_y)

@@ -22,6 +22,8 @@ dataflow gen | done
 model_path -> best_model_path
 use copy_tree directly | not important
 
+Replace train_test_split with actual dataset split
+
 child_epochs		search_epochs 	batch_size		child_init_filters		time per child epoch 		total training time per dataset
 10					30				128				64						100s						30000s = 8.33hrs
 10					30				256				32						70s							21000s = 5.83hrs
