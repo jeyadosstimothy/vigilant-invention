@@ -51,9 +51,10 @@ class Database:
 
 
 class Controller:
-    def __init__(self, datasets, characterizer, trainer):
+    def __init__(self, datasets, characterizer, trainer, dataset_directory='datasets'):
         self.characterizer = characterizer
         self.trainer = trainer
+        self.dataset_directory = dataset_directory
 
         if self._db_exists:
             self.db = Database.load(DATABASE_PATH, self)
@@ -72,7 +73,7 @@ class Controller:
 
     def populate_database(self, datasets):
         for datasetClass in datasets:
-            dataset = datasetClass()
+            dataset = datasetClass(path=self.dataset_directory)
             print('Probing %s dataset' % dataset.name)
             dataset_character = self.characterizer.characterize(dataset)
             print('Finding optimal Model for %s dataset' % dataset.name)

@@ -9,6 +9,7 @@ from sklearn.preprocessing import LabelEncoder
 from ENAS_Keras.src.utils import *
 from keras.preprocessing.image import ImageDataGenerator
 
+
 def resize_image(img, dim=(32, 32)):
     return cv2.resize(img, dim)
 
@@ -128,9 +129,10 @@ class Cifar100(Dataset):
 
 
 class SVHN(Dataset):
-    def __init__(self):
-        (train_x, train_y)  = self.load_data('datasets/SVHN/train_32x32.mat')
-        (test_x, test_y)  = self.load_data('datasets/SVHN/test_32x32.mat')
+    def __init__(self, path):
+        self.path = os.path.join(path, 'SVHN')
+        (train_x, train_y)  = self.load_data(os.path.join(os.path.join(self.path, 'train_32x32.mat')))
+        (test_x, test_y)  = self.load_data(os.path.join(os.path.join(self.path, 'test_32x32.mat')))
         if K.image_data_format() == 'channels_first':
             train_x = train_x.reshape(train_x.shape[0], *reversed(train_x.shape[1:]))
             test_x = test_x.reshape(test_x.shape[0], *reversed(test_x.shape[1:]))
@@ -143,7 +145,7 @@ class SVHN(Dataset):
         self.test_x, self.test_y = test_x, test_y
 
     def load_data(self, path):
-        train_dict = sio.loadmat(path)
+        train_dict = sio.loadmat(self.path)
         X = np.asarray(train_dict['X'])
         X_t = []
         for i in range(X.shape[3]):
@@ -162,8 +164,9 @@ class SVHN(Dataset):
 
 
 class GTSRB(Dataset):
-    def __init__(self):
-        (train_x, train_y), (test_x, test_y)  = self.load_data('datasets/GTSRB/')
+    def __init__(self, path):
+        self.path = os.path.join(path, 'GTSRB')
+        (train_x, train_y), (test_x, test_y)  = self.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         if K.image_data_format() == 'channels_first':
             train_x = train_x.reshape(train_x.shape[0], *reversed(train_x.shape[1:]))
@@ -176,7 +179,7 @@ class GTSRB(Dataset):
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
 
-    def load_data(self, path):
+    def load_data(self):
         '''Reads traffic sign data for German Traffic Sign Recognition Benchmark.
 
         Arguments: path to the traffic sign data, for example './GTSRB/Training'
@@ -184,12 +187,12 @@ class GTSRB(Dataset):
         train_x = [] # images
         train_y = [] # corresponding labels
 
-        with zipfile.ZipFile(os.path.join(path, 'GTSRB_Final_Training_Images.zip')) as archive:
+        with zipfile.ZipFile(os.path.join(self.path, 'GTSRB_Final_Training_Images.zip')) as archive:
             prefix = 'GTSRB/Final_Training/Images/'
-            for path in archive.namelist():
-                if path.endswith('.ppm'):
-                    c = int(path[len(prefix):len(prefix) + 5])
-                    train_x.append(plt.imread(archive.open(path))) # the 1th column is the filename
+            for file in archive.namelist():
+                if file.endswith('.ppm'):
+                    c = int(file[len(prefix):len(prefix) + 5])
+                    train_x.append(plt.imread(archive.open(file))) # the 1th column is the filename
                     train_y.append(c) # the 8th column is the label
 
         train_x, train_y = np.array(train_x), np.array(train_y)
@@ -203,11 +206,11 @@ class GTSRB(Dataset):
 
 
 class Flowers102(Dataset):
-    def load_data(self, path):
+    def load_data(self):
         train_x = []
-        train_y = sio.loadmat(os.path.join(path, 'imagelabels.mat'))['labels'][0] - 1
+        train_y = sio.loadmat(os.path.join(self.path, 'imagelabels.mat'))['labels'][0] - 1
 
-        image_dir = os.path.join(path, 'jpg')
+        image_dir = os.path.join(self.path, 'jpg')
         for file in os.listdir(image_dir):
             img = plt.imread(os.path.join(image_dir, file))
             train_x.append(resize_image(img))
@@ -217,8 +220,9 @@ class Flowers102(Dataset):
         train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.2)
         return (train_x, train_y), (test_x, test_y)
 
-    def __init__(self):
-        (train_x, train_y),(test_x, test_y)  = self.load_data('datasets/flowers-102/')
+    def __init__(self, path):
+        self.path = os.path.join(path, 'flowers-102')
+        (train_x, train_y),(test_x, test_y)  = self.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
@@ -231,12 +235,12 @@ class Flowers102(Dataset):
 
 
 class Flowers(Dataset):
-    def load_data(self, path):
+    def load_data(self):
         train_x = []
         train_y = []
 
-        for file in os.listdir(path):
-            classfolder = os.path.join(path, file)
+        for file in os.listdir(self.path):
+            classfolder = os.path.join(self.path, file)
             if os.path.isdir(classfolder):
                 for image in os.listdir(classfolder):
                     img = plt.imread(os.path.join(classfolder, image))
@@ -248,8 +252,9 @@ class Flowers(Dataset):
         train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.2)
         return (train_x, train_y), (test_x, test_y)
 
-    def __init__(self):
-        (train_x, train_y),(test_x, test_y)  = self.load_data('datasets/flowers/flower_photos')
+    def __init__(self, path):
+        self.path = os.path.join(path, 'flowers/flower_photos')
+        (train_x, train_y),(test_x, test_y)  = self.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)

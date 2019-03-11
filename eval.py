@@ -15,12 +15,13 @@ DATASETS =  [
                 # Flowers
             ]
 
-test_dataset = Flowers()
+test_dataset = Flowers(path='datasets')
 
 controller = Controller(
                 datasets=DATASETS,
                 characterizer=ProbenetCharacterizer(),
                 trainer=EnasTrainer(),
+                dataset_directory='datasets'
             )
 
 
