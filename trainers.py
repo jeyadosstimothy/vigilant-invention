@@ -1,16 +1,24 @@
 import math, os
 from utilities import get_checkpoint_file, copy_and_overwrite, delete_file
-from keras import models, layers, optimizers
-from keras.optimizers import Adam, SGD
-from keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
+from tensorflow.keras import models, layers, optimizers
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
 from abc import ABC, abstractmethod
 import numpy as np
 from resnet import resnet
 from ENAS_Keras.ENAS import EfficientNeuralArchitectureSearch
 from ENAS_Keras.src.utils import sgdr_learning_rate
+import tensorflow as tf
+
 
 DEFAULT_EPOCHS = 5
 DEFAULT_BATCH_SIZE = 256
+
+
+# This address identifies the TPU we'll use when configuring TensorFlow.
+TPU_WORKER = 'grpc://' + os.environ['COLAB_TPU_ADDR']
+tf.logging.set_verbosity(tf.logging.INFO)
+
 
 def find_highest_acc(history):
     max_index, max_acc = None, 0
@@ -35,7 +43,8 @@ def lr_schedule(epoch):
 
 
 class Trainer(ABC):
-    def __init__(self, dataset=None):
+    def __init__(self, dataset=None, useTpu=False):
+        self.useTpu = useTpu
         self.set_dataset(dataset) if dataset is not None else None
 
     @abstractmethod
@@ -46,6 +55,11 @@ class Trainer(ABC):
     def set_dataset(self, dataset):
         self._dataset = dataset
         self._model = self.build()
+        if self.useTpu:
+            self._model = tf.contrib.tpu.keras_to_tpu_model(
+                self._model,
+                strategy=tf.contrib.tpu.TPUDistributionStrategy(
+                    tf.contrib.cluster_resolver.TPUClusterResolver(TPU_WORKER)))
 
     @property
     def checkpoint_file(self):
@@ -81,11 +95,14 @@ class Trainer(ABC):
                                           min_lr=0.5e-6),
                         EarlyStopping(monitor='val_acc', patience=2)
                     ]
+        if self.useTpu:
+            batch_size = batch_size * 8
         history = self._model.fit(self._dataset.train_x, self._dataset.train_y,
                                   epochs=epochs, batch_size=batch_size,
                                   validation_data=(self._dataset.test_x, self._dataset.test_y),
                                   shuffle=True, callbacks=callbacks)
         self._best_epoch_num, self._val_acc = find_highest_acc(history)
+        self._model.save(self.best_model_path)
 
 
 class ProbenetTrainer(Trainer):
@@ -107,7 +124,7 @@ class ProbenetTrainer(Trainer):
         model = layers.Dense(units=self._dataset.num_classes, activation='softmax') (model)
         probenet = models.Model(inputs=inputs, outputs=model)
 
-        optimizer = optimizers.Adam(lr=lr_schedule(0))
+        optimizer = Adam(lr=lr_schedule(0))
         probenet.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
         return probenet
 
@@ -139,11 +156,18 @@ class ResnetTrainer(Trainer):
 
 
 class TransferLearner(Trainer):
-    def __init__(self, dataset=None, model=None):
+    def __init__(self, dataset=None, model=None, useTpu=False):
+        self.useTpu = useTpu
         if dataset is not None:
             self.set_dataset(dataset)
             if model is not None:
                 self.transfer_from_model(model)
+                if self.useTpu:
+                    self._model = tf.contrib.tpu.keras_to_tpu_model(
+                        self._model,
+                        strategy=tf.contrib.tpu.TPUDistributionStrategy(
+                            tf.contrib.cluster_resolver.TPUClusterResolver(TPU_WORKER)))
+
         if model is not None:
             raise Exception('dataset should be specified')
 
@@ -153,6 +177,11 @@ class TransferLearner(Trainer):
     def transfer_from_model(self, model_path):
         model = load_model(model_path)
         self._model = self.build(model)
+        if self.useTpu:
+            self._model = tf.contrib.tpu.keras_to_tpu_model(
+                self._model,
+                strategy=tf.contrib.tpu.TPUDistributionStrategy(
+                    tf.contrib.cluster_resolver.TPUClusterResolver(TPU_WORKER)))
 
     @abstractmethod
     def build(self, model):
@@ -178,6 +207,10 @@ class EnasTrainer(Trainer):
     def best_model_path(self):
         return self.checkpoint_directory
 
+    def set_dataset(self, dataset):
+        self._dataset = dataset
+        self._model = self.build()
+
     def build(self):
         nt = sgdr_learning_rate(n_Max=0.05, n_min=0.001, ranges=1, init_cycle=10)
         model = EfficientNeuralArchitectureSearch(
@@ -192,6 +225,7 @@ class EnasTrainer(Trainer):
             child_input_shape=self._dataset.instance_shape,
             working_directory=self.checkpoint_directory,
             child_init_filters=32,
+            useTpu=self.useTpu
         )
 
         return model

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from keras import datasets, utils, backend as K
+from tensorflow.keras import datasets, utils, backend as K
 import numpy as np
 import cv2, os, zipfile
 import scipy.io as sio
@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from ENAS_Keras.src.utils import *
-from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 def resize_image(img, dim=(32, 32)):

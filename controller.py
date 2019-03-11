@@ -1,6 +1,6 @@
 import json, os
 from trainers import ProbenetTrainer, ResnetTrainer, StandardTransferLearner
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 
 
 DATABASE_PATH = 'db.json'

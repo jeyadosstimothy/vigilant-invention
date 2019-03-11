@@ -19,15 +19,15 @@ test_dataset = Flowers(path='datasets')
 
 controller = Controller(
                 datasets=DATASETS,
-                characterizer=ProbenetCharacterizer(),
-                trainer=EnasTrainer(),
-                dataset_directory='datasets'
+                characterizer=ProbenetCharacterizer(useTpu=True),
+                trainer=EnasTrainer(useTpu=True),
+                dataset_directory='datasets',
             )
 
 
 model = controller.find_model(
             dataset=test_dataset,
-            transfer_learner=EnasTransferLearner()
+            transfer_learner=EnasTransferLearner(useTpu=True)
         )
 
 print('Transfer Learning accuracy: ', model.val_acc)

@@ -9,8 +9,8 @@ class Characterizer(ABC):
 
 
 class ProbenetCharacterizer(Characterizer):
-    def __init__(self):
-        self.probenet = ProbenetTrainer()
+    def __init__(self, useTpu=False):
+        self.probenet = ProbenetTrainer(useTpu=useTpu)
 
     def characterize(self, dataset):
         self.probenet.set_dataset(dataset)

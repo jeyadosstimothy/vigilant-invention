@@ -10,12 +10,12 @@ https://arxiv.org/pdf/1603.05027.pdf
 """
 
 from __future__ import print_function
-import keras
-from keras.layers import Dense, Conv2D, BatchNormalization, Activation
-from keras.layers import AveragePooling2D, Input, Flatten
-from keras.regularizers import l2
-from keras import backend as K
-from keras.models import Model
+from tensorflow import keras
+from tensorflow.keras.layers import Dense, Conv2D, BatchNormalization, Activation
+from tensorflow.keras.layers import AveragePooling2D, Input, Flatten
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Model
 
 
 def resnet_layer(inputs,
