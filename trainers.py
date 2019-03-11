@@ -185,7 +185,7 @@ class EnasTrainer(Trainer):
             y_train=self._dataset.train_y,
             x_test=self._dataset.test_x,
             y_test=self._dataset.test_y,
-            child_epochs=len(nt),
+            search_epochs=len(nt),
             child_lr_scedule=nt,
             child_network_name=self._dataset.name,
             child_classes=self._dataset.num_classes,
@@ -203,6 +203,7 @@ class EnasTrainer(Trainer):
         # number of samples of child networks is found from nt
         # i.e., epochs != number of search epochs of ENAS (number of child networks trained)
         self._model.controller_epochs = epochs
+        self._model.child_epochs = epochs
         self._model.child_batch_size = batch_size
         self._model.child_val_batch_size = batch_size,
         #self._model.data_gen = self._dataset.get_data_gen(),
@@ -214,7 +215,7 @@ class EnasTrainer(Trainer):
         print(self._model.best_normal_cell)
         print(self._model.best_reduction_cell)
 
-        self._model.train_best_cells(child_epochs=epochs)
+        self._model.train_best_cells(child_epochs=10)
 
         self._best_epoch_num, self._val_acc = self._model.best_epoch_num, self._model.best_val_acc
 
