@@ -1,4 +1,4 @@
-import json, os, pickle
+import json, os, pickle, time
 from trainers import ProbenetTrainer, ResnetTrainer, StandardTransferLearner
 from keras.models import load_model
 from utilities import create_directory
@@ -54,7 +54,7 @@ class Database:
 
 class Controller:
     def __init__(self, datasets, characterizer, trainer, epochs=DEFAULT_EPOCHS, batch_size=DEFAULT_BATCH_SIZE,
-                    dataset_directory='datasets', processed_datasets_dir='processed_datasets'):
+                    dataset_directory='datasets'):
         self.characterizer = characterizer
         self.trainer = trainer
         self.dataset_directory = dataset_directory
@@ -77,17 +77,27 @@ class Controller:
         return type(self.characterizer).__name__ + '_' + type(self.trainer).__name__
 
     def populate_database(self, datasets):
+        timeDict = {}
         for datasetClass in datasets:
+            datasetTime = {}
             dataset = datasetClass(path=self.dataset_directory)
             print('Probing %s dataset' % dataset.name)
             dataset_character = self.characterizer.characterize(dataset, epochs=self.epochs, batch_size=self.batch_size)
             print('Finding optimal Model for %s dataset' % dataset.name)
             self.trainer.set_dataset(dataset)
+            datasetTime['start'] = time.time()
             self.trainer.evaluate(epochs=self.epochs, batch_size=self.batch_size)
+            datasetTime['end'] = time.time()
+            datasetTime['diff'] = datasetTime['end'] - datasetTime['start']
+            timeDict[datasetClass.__name__] = datasetTime
             self.db[dataset.name] = (dataset_character, self.trainer.best_model_path)
             self.db.save(DATABASE_PATH)
+            with open('time.json', 'w') as f:
+                json.dump(timeDict, f, indent=4)
 
     def find_model(self, dataset, transfer_learner):
+        startTime = time.time()
+        print('Commence finding suitable model at: ', startTime)
         print('Probing %s dataset' % dataset.name)
         dataset_character = self.characterizer.characterize(dataset)
         nearest_dataset = self.db.get_nearest_neighbour(dataset_character)
@@ -96,6 +106,9 @@ class Controller:
         transfer_learner.set_dataset(dataset)
         transfer_learner.transfer_from_model(best_model_path)
         transfer_learner.evaluate(epochs=self.epochs, batch_size=self.batch_size)
+        endTime = time.time()
+        print('Finished finding model at: ', endTime)
+        print('Difference: ', endTime - startTime)
         self.db[dataset.name] = (dataset_character, transfer_learner.best_model_path)
         self.db.save(DATABASE_PATH)
         # TODO: ability to create trainer from keras model
