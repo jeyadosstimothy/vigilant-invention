@@ -9,30 +9,30 @@ DATASETS =  [
                 # FashionMnist,
                 Cifar10,
                 Cifar100,
-                SVHN,
-                GTSRB,
-                Flowers102,
+                # SVHN,
+                # GTSRB,
+                # Flowers102,
                 # Flowers
             ]
 
-test_dataset = Flowers(path='datasets')
+# test_dataset = Flowers(path='datasets')
 
 controller = Controller(
                 datasets=DATASETS,
                 characterizer=ProbenetCharacterizer(),
                 trainer=EnasTrainer(),
                 dataset_directory='datasets',
-                epochs=10,
-                batch_size=512,
+                epochs=20,
+                batch_size=128,
             )
 
 
-model = controller.find_model(
-            dataset=test_dataset,
-            transfer_learner=EnasTransferLearner()
-        )
+# model = controller.find_model(
+#             dataset=test_dataset,
+#             transfer_learner=EnasTransferLearner()
+#         )
 
-print('Transfer Learning accuracy: ', model.val_acc)
+# print('Transfer Learning accuracy: ', model.val_acc)
 '''
 trainer = EnasTrainer(test_dataset)
 trainer.evaluate()

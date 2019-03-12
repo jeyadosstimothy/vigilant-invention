@@ -77,7 +77,7 @@ class Trainer(ABC):
                                           cooldown=0,
                                           patience=5,
                                           min_lr=0.5e-6),
-                        EarlyStopping(monitor='val_acc', patience=2)
+                        EarlyStopping(monitor='val_acc', patience=3)
                     ]
         history = self._model.fit(self._dataset.train_x, self._dataset.train_y,
                                   epochs=epochs, batch_size=batch_size,
@@ -177,7 +177,7 @@ class EnasTrainer(Trainer):
         return self.checkpoint_directory
 
     def build(self):
-        nt = sgdr_learning_rate(n_Max=0.05, n_min=0.001, ranges=3, init_cycle=2)
+        nt = sgdr_learning_rate(n_Max=0.05, n_min=0.001, ranges=2, init_cycle=4)
         model = EfficientNeuralArchitectureSearch(
             x_train=self._dataset.train_x,
             y_train=self._dataset.train_y,
@@ -190,7 +190,7 @@ class EnasTrainer(Trainer):
             child_input_shape=self._dataset.instance_shape,
             working_directory=self.checkpoint_directory,
             child_init_filters=32,
-            num_nodes=3,
+            num_nodes=4,
             num_opers=3,
         )
 
