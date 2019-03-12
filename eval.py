@@ -21,7 +21,9 @@ controller = Controller(
                 datasets=DATASETS,
                 characterizer=ProbenetCharacterizer(),
                 trainer=EnasTrainer(),
-                dataset_directory='datasets'
+                dataset_directory='datasets',
+                epochs=10,
+                batch_size=512,
             )
 
 

@@ -20,7 +20,7 @@ def find_highest_acc(history):
 
 
 def lr_schedule(epoch):
-    lr = 1e-3
+    lr = 1e-2
     if epoch > 180:
         lr *= 0.5e-3
     elif epoch > 160:
@@ -177,7 +177,7 @@ class EnasTrainer(Trainer):
         return self.checkpoint_directory
 
     def build(self):
-        nt = sgdr_learning_rate(n_Max=0.05, n_min=0.001, ranges=1, init_cycle=10)
+        nt = sgdr_learning_rate(n_Max=0.05, n_min=0.001, ranges=3, init_cycle=2)
         model = EfficientNeuralArchitectureSearch(
             x_train=self._dataset.train_x,
             y_train=self._dataset.train_y,
@@ -190,6 +190,8 @@ class EnasTrainer(Trainer):
             child_input_shape=self._dataset.instance_shape,
             working_directory=self.checkpoint_directory,
             child_init_filters=32,
+            num_nodes=3,
+            num_opers=3,
         )
 
         return model
@@ -213,7 +215,7 @@ class EnasTrainer(Trainer):
         print(self._model.best_normal_cell)
         print(self._model.best_reduction_cell)
 
-        self._model.train_best_cells(child_epochs=10)
+        self._model.train_best_cells(child_epochs=epochs * 2)
 
         self._best_epoch_num, self._val_acc = self._model.best_epoch_num, self._model.best_val_acc
 
