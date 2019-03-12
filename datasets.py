@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from ENAS_Keras.src.utils import *
 from keras.preprocessing.image import ImageDataGenerator
+from utilities import create_directory
 
 
 def resize_image(img, dim=(32, 32)):
@@ -63,6 +64,7 @@ class Dataset(ABC):
         return os.path.isfile(self.pickleFile)
 
     def save(self):
+        create_directory(self.path)
         pickle.dump(self, open(self.pickleFile, 'wb'))
 
     def load(self):
@@ -77,7 +79,12 @@ class Dataset(ABC):
 # TODO: subtract pixel mean to improve accuracy
 # Keras datasets can be found here: /home/$USER/.keras/datasets
 class Mnist(Dataset):
-    def __init__(self, path='./'):
+    def __init__(self, path):
+        self.path = os.path.join(path, 'Mnist')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
         (train_x, train_y), (test_x, test_y) = datasets.mnist.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         #train_x -= np.mean(train_x, axis=0, dtype=train_x.dtype)
@@ -94,6 +101,7 @@ class Mnist(Dataset):
             test_x = test_x.reshape(*test_x.shape)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
+        self.save()
 
     @property
     def num_classes(self):
@@ -101,7 +109,12 @@ class Mnist(Dataset):
 
 
 class FashionMnist(Dataset):
-    def __init__(self, path='./'):
+    def __init__(self, path):
+        self.path = os.path.join(path, 'FashionMnist')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
         (train_x, train_y), (test_x, test_y) = datasets.fashion_mnist.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         train_x = train_x.reshape(*train_x.shape, 1)
@@ -116,6 +129,7 @@ class FashionMnist(Dataset):
             test_x = test_x.reshape(*test_x.shape)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
+        self.save()
 
     @property
     def num_classes(self):
@@ -123,12 +137,18 @@ class FashionMnist(Dataset):
 
 
 class Cifar10(Dataset):
-    def __init__(self, path='./'):
+    def __init__(self, path):
+        self.path = os.path.join(path, 'Cifar10')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
         (train_x, train_y), (test_x, test_y) = datasets.cifar10.load_data()
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
+        self.save()
 
     @property
     def num_classes(self):
@@ -136,12 +156,18 @@ class Cifar10(Dataset):
 
 
 class Cifar100(Dataset):
-    def __init__(self, path='./'):
+    def __init__(self, path):
+        self.path = os.path.join(path, 'Cifar100')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
         (train_x, train_y), (test_x, test_y) = datasets.cifar100.load_data(label_mode='fine')
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
+        self.save()
 
     @property
     def num_classes(self):
