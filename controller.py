@@ -66,8 +66,6 @@ class Controller:
             datasets = [dataset for dataset in datasets if dataset.__name__ not in self.db]
         else:
             self.db = Database(self)
-        self.processed_datasets_dir = processed_datasets_dir
-        create_directory(self.processed_datasets_dir)
         self.populate_database(datasets)
 
     @property
@@ -80,13 +78,7 @@ class Controller:
 
     def populate_database(self, datasets):
         for datasetClass in datasets:
-            dataset = None
-            processed_dataset_path = os.path.join(self.processed_datasets_dir, '{}.pickle'.format(datasetClass.__name__))
-            if os.path.isfile(processed_dataset_path):
-                dataset = pickle.load(open(processed_dataset_path, 'rb'))
-            else:
-                dataset = datasetClass(path=self.dataset_directory)
-                pickle.dump(dataset, open(processed_dataset_path, 'wb'))
+            dataset = datasetClass(path=self.dataset_directory)
             print('Probing %s dataset' % dataset.name)
             dataset_character = self.characterizer.characterize(dataset, epochs=self.epochs, batch_size=self.batch_size)
             print('Finding optimal Model for %s dataset' % dataset.name)

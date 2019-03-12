@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from keras import datasets, utils, backend as K
 import numpy as np
-import cv2, os, zipfile
+import cv2, os, zipfile, pickle
 import scipy.io as sio
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -23,6 +23,7 @@ class Dataset(ABC):
     train_y = None
     test_x = None
     test_y = None
+    path = None
 
     @abstractmethod
     def __init__(self, path):
@@ -52,6 +53,25 @@ class Dataset(ABC):
     def get_data_flow_gen(self, batch_size):
         return MixupGenerator(
             self.train_x, self.train_y, batch_size=batch_size, alpha=0.2, datagen=self.get_data_gen())()
+
+    @property
+    def pickleFile(self):
+        return os.path.join(self.path, '{}.pickle'.format(type(self).__name__))
+
+    @property
+    def alreadyProcessed(self):
+        return os.path.isfile(self.pickleFile)
+
+    def save(self):
+        pickle.dump(self, open(self.pickleFile, 'wb'))
+
+    def load(self):
+        dataset = pickle.load(open(self.pickleFile, 'rb'))
+        self.train_x = dataset.train_x
+        self.train_y = dataset.train_y
+        self.test_x = dataset.test_x
+        self.test_y = dataset.test_y
+        self.path = dataset.path
 
 
 # TODO: subtract pixel mean to improve accuracy
@@ -131,6 +151,10 @@ class Cifar100(Dataset):
 class SVHN(Dataset):
     def __init__(self, path):
         self.path = os.path.join(path, 'SVHN')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
         (train_x, train_y)  = self.load_data(os.path.join(os.path.join(self.path, 'train_32x32.mat')))
         (test_x, test_y)  = self.load_data(os.path.join(os.path.join(self.path, 'test_32x32.mat')))
         if K.image_data_format() == 'channels_first':
@@ -143,6 +167,7 @@ class SVHN(Dataset):
         test_y = utils.to_categorical(test_y, self.num_classes)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
+        self.save()
 
     def load_data(self, path):
         train_dict = sio.loadmat(path)
@@ -166,6 +191,10 @@ class SVHN(Dataset):
 class GTSRB(Dataset):
     def __init__(self, path):
         self.path = os.path.join(path, 'GTSRB')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
         (train_x, train_y), (test_x, test_y)  = self.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         if K.image_data_format() == 'channels_first':
@@ -178,6 +207,7 @@ class GTSRB(Dataset):
         test_y = utils.to_categorical(test_y, self.num_classes)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
+        self.save()
 
     def load_data(self):
         '''Reads traffic sign data for German Traffic Sign Recognition Benchmark.
@@ -222,12 +252,17 @@ class Flowers102(Dataset):
 
     def __init__(self, path):
         self.path = os.path.join(path, 'flowers-102')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
         (train_x, train_y),(test_x, test_y)  = self.load_data()
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
+        self.save()
 
     @property
     def num_classes(self):
@@ -235,12 +270,12 @@ class Flowers102(Dataset):
 
 
 class Flowers(Dataset):
-    def load_data(self):
+    def load_data(self, path):
         train_x = []
         train_y = []
 
-        for file in os.listdir(self.path):
-            classfolder = os.path.join(self.path, file)
+        for file in os.listdir(path):
+            classfolder = os.path.join(path, file)
             if os.path.isdir(classfolder):
                 for image in os.listdir(classfolder):
                     img = plt.imread(os.path.join(classfolder, image))
@@ -253,13 +288,18 @@ class Flowers(Dataset):
         return (train_x, train_y), (test_x, test_y)
 
     def __init__(self, path):
-        self.path = os.path.join(path, 'flowers/flower_photos')
-        (train_x, train_y),(test_x, test_y)  = self.load_data()
+        self.path = os.path.join(path, 'flowers')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
+        (train_x, train_y),(test_x, test_y)  = self.load_data(os.path.join(self.path, 'flower_photos'))
         train_x, test_x = resize_images(train_x), resize_images(test_x)
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
         self.train_x, self.train_y = train_x, train_y
         self.test_x, self.test_y = test_x, test_y
+        self.save()
 
     @property
     def num_classes(self):
