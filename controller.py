@@ -90,7 +90,7 @@ class Controller:
             datasetTime['end'] = time.time()
             datasetTime['diff'] = datasetTime['end'] - datasetTime['start']
             timeDict[datasetClass.__name__] = datasetTime
-            self.db[dataset.name] = (dataset_character, self.trainer.best_model_path)
+            self.db[dataset.name] = (dataset_character, self.trainer.best_model_path, self.trainer.val_acc)
             self.db.save(DATABASE_PATH)
             with open('time.json', 'w') as f:
                 json.dump(timeDict, f, indent=4)
@@ -109,7 +109,7 @@ class Controller:
         endTime = time.time()
         print('Finished finding model at: ', endTime)
         print('Difference: ', endTime - startTime)
-        self.db[dataset.name] = (dataset_character, transfer_learner.best_model_path)
+        self.db[dataset.name] = (dataset_character, transfer_learner.best_model_path, transfer_learner.val_acc)
         self.db.save(DATABASE_PATH)
         # TODO: ability to create trainer from keras model
         return transfer_learner
