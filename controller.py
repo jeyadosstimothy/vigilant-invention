@@ -78,6 +78,9 @@ class Controller:
 
     def populate_database(self, datasets):
         timeDict = {}
+        if os.path.isfile('time.json'):
+            with open('time.json') as f:
+                timeDict = json.load(f)
         for datasetClass in datasets:
             datasetTime = {}
             dataset = datasetClass(path=self.dataset_directory)

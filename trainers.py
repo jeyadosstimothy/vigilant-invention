@@ -192,6 +192,9 @@ class EnasTrainer(Trainer):
             child_init_filters=32,
             num_nodes=4,
             num_opers=3,
+            run_on_jupyter=False,
+            initialize_child_weight_directory=False,
+            save_to_disk=True,
         )
 
         return model
