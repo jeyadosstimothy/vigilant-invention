@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from keras import datasets, utils, backend as K
 import numpy as np
+import pandas as pd
 import cv2, os, zipfile, pickle
 import scipy.io as sio
 import matplotlib.pyplot as plt
@@ -240,8 +241,7 @@ class GTSRB(Dataset):
 
         Arguments: path to the traffic sign data, for example './GTSRB/Training'
         Returns:   list of images, list of corresponding labels'''
-        train_x = [] # images
-        train_y = [] # corresponding labels
+        train_x, train_y = [], [] # images, corresponding labels
 
         with zipfile.ZipFile(os.path.join(self.path, 'GTSRB_Final_Training_Images.zip')) as archive:
             prefix = 'GTSRB/Final_Training/Images/'
@@ -252,7 +252,17 @@ class GTSRB(Dataset):
                     train_y.append(c) # the 8th column is the label
 
         train_x, train_y = np.array(train_x), np.array(train_y)
-        train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.2)
+
+        test_x, test_y = [], []
+        with zipfile.ZipFile(os.path.join(self.path, 'GTSRB_Final_Test_Images.zip')) as test_archive, zipfile.ZipFile(os.path.join(self.path, 'GTSRB_Final_Test_GT.zip')) as label_archive:
+            prefix = 'GTSRB/Final_Test/Images/'
+            label_file = 'GT-final_test.csv'
+            labels = pd.read_csv(label_archive.open(label_file), delimiter=';')
+            for file in test_archive.namelist():
+                if file.endswith('.ppm'):
+                    test_x.append(plt.imread(test_archive.open(file)))
+                    test_y.append(labels.loc[labels['Filename']==file[-9:], 'ClassId'].values[0])
+        test_x, test_y = np.array(test_x), np.array(test_y)
 
         return (train_x, train_y), (test_x, test_y)
 
@@ -263,17 +273,19 @@ class GTSRB(Dataset):
 
 class Flowers102(Dataset):
     def load_data(self):
-        train_x = []
-        train_y = sio.loadmat(os.path.join(self.path, 'imagelabels.mat'))['labels'][0] - 1
+        images = []
+        labels = sio.loadmat(os.path.join(self.path, 'imagelabels.mat'))['labels'][0] - 1
+        splits = sio.loadmat(os.path.join(self.path, 'setid.mat'))
 
         image_dir = os.path.join(self.path, 'jpg')
         for file in os.listdir(image_dir):
             img = plt.imread(os.path.join(image_dir, file))
-            train_x.append(resize_image(img))
+            images.append(resize_image(img))
 
-        train_x = np.array(train_x)
+        images = np.array(images)
+        train_x, train_y = images[splits['trnid'][0]], labels[splits['trnid'][0]]
+        test_x, test_y = images[splits['valid'][0]], labels[splits['valid'][0]]
 
-        train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.2)
         return (train_x, train_y), (test_x, test_y)
 
     def __init__(self, path):
@@ -283,7 +295,6 @@ class Flowers102(Dataset):
             return
 
         (train_x, train_y),(test_x, test_y)  = self.load_data()
-        train_x, test_x = resize_images(train_x), resize_images(test_x)
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
         self.train_x, self.train_y = train_x, train_y
