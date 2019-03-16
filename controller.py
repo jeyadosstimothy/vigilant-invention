@@ -102,12 +102,12 @@ class Controller:
         startTime = time.time()
         print('Commence finding suitable model at: ', startTime)
         print('Probing %s dataset' % dataset.name)
-        dataset_character = self.characterizer.characterize(dataset)
+        dataset_character = self.characterizer.characterize(dataset, epochs=self.epochs, batch_size=self.batch_size)
         nearest_dataset = self.db.get_nearest_neighbour(dataset_character)
         print('Found nearest_dataset:', nearest_dataset)
-        nearest_dataset_character, best_model_path = self.db[nearest_dataset]
+        nearest_dataset_character, best_model_path, best_val_acc = self.db[nearest_dataset]
         transfer_learner.set_dataset(dataset)
-        transfer_learner.transfer_from_model(best_model_path)
+        transfer_learner.transfer_from_model(best_model_path, nearest_dataset)
         transfer_learner.evaluate(epochs=self.epochs, batch_size=self.batch_size)
         endTime = time.time()
         print('Finished finding model at: ', endTime)
