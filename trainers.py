@@ -1,6 +1,7 @@
 import math, os
 from utilities import get_checkpoint_file, copy_and_overwrite, delete_file
 from keras import models, layers, optimizers
+from keras.models import load_model
 from keras.optimizers import Adam, SGD
 from keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
 from abc import ABC, abstractmethod
@@ -148,7 +149,7 @@ class TransferLearner(Trainer):
     def set_dataset(self, dataset):
         self._dataset = dataset
 
-    def transfer_from_model(self, model_path):
+    def transfer_from_model(self, model_path, nearest_dataset):
         model = load_model(model_path)
         self._model = self.build(model)
 
@@ -224,9 +225,15 @@ class EnasTrainer(Trainer):
 
 
 class EnasTransferLearner(EnasTrainer, TransferLearner):
-    def transfer_from_model(self, model_path):
+    def transfer_from_model(self, model_path, nearest_dataset):
         copy_and_overwrite(model_path, self.checkpoint_directory)
-        delete_file(os.path.join(self.checkpoint_directory, '{}_record.csv'.format(self._dataset.name)))
+        os.rename(os.path.join(self.checkpoint_directory, '%s_normal_cell.pkl' % nearest_dataset),
+            os.path.join(self.checkpoint_directory, '%s_normal_cell.pkl' % self._dataset.name))
+        os.rename(os.path.join(self.checkpoint_directory, '%s_reduction_cell.pkl' % nearest_dataset),
+            os.path.join(self.checkpoint_directory, '%s_reduction_cell.pkl' % self._dataset.name))
+        os.rename(os.path.join(self.checkpoint_directory, '%s_record.csv' % nearest_dataset),
+            os.path.join(self.checkpoint_directory, '%s_record.csv' % self._dataset.name))
+        delete_file(os.path.join(self.checkpoint_directory, '%s_record.csv' % self._dataset.name))
         self._model = self.build()
 
     def evaluate(self, epochs, batch_size):
