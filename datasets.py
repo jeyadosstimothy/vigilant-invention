@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from keras import datasets, utils, backend as K
 import numpy as np
 import pandas as pd
-import cv2, os, zipfile, pickle
+import cv2, os, zipfile, pickle, tarfile
 import scipy.io as sio
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -332,6 +332,81 @@ class Flowers(Dataset):
 
         (train_x, train_y),(test_x, test_y)  = self.load_data(os.path.join(self.path, 'flower_photos'))
         train_x, test_x = resize_images(train_x), resize_images(test_x)
+        train_y = utils.to_categorical(train_y, self.num_classes)
+        test_y = utils.to_categorical(test_y, self.num_classes)
+        self.train_x, self.train_y = train_x, train_y
+        self.test_x, self.test_y = test_x, test_y
+        self.save()
+
+    @property
+    def num_classes(self):
+        return 5
+
+
+class Caltech101(Dataset):
+    def load_data(self, path):
+        train_x, train_y = [], []
+
+        with tarfile.open(path) as tar:
+            for name, fileInfo in zip(tar.getnames(), tar.getmembers()):
+                if name.endswith('jpg'):
+                    file = tar.extractfile(fileInfo)
+                    image = plt.imread(file)
+                    if(len(image.shape) == 3):
+                        train_x.append(resize_image(image))
+                        train_y.append(name[21:-15])
+            train_x, train_y = np.array(train_x), LabelEncoder().fit_transform(train_y)
+
+        train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.2)
+        return (train_x, train_y), (test_x, test_y)
+
+    def __init__(self, path):
+        self.path = os.path.join(path, 'caltech101')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
+        (train_x, train_y),(test_x, test_y)  = self.load_data(os.path.join(self.path, '101_ObjectCategories.tar.gz'))
+        train_x, test_x = resize_images(train_x), resize_images(test_x)
+        train_y = utils.to_categorical(train_y, self.num_classes)
+        test_y = utils.to_categorical(test_y, self.num_classes)
+        self.train_x, self.train_y = train_x, train_y
+        self.test_x, self.test_y = test_x, test_y
+        self.save()
+
+    @property
+    def num_classes(self):
+        return 101
+
+
+class Linnaeus5(Dataset):
+    def load_data(self, path):
+
+        def read_images(path):
+            images, labels = [], []
+            for file in os.listdir(path):
+                classfolder = os.path.join(path, file)
+                if os.path.isdir(classfolder):
+                    for image in os.listdir(classfolder):
+                        img = plt.imread(os.path.join(classfolder, image))
+                        images.append(resize_image(img))
+                        labels.append(file)
+            images = np.array(images)
+            labels = LabelEncoder().fit_transform(labels)
+            return images, labels
+
+        train_x, train_y = read_images(os.path.join(path, 'train'))
+        test_x, test_y = read_images(os.path.join(path, 'test'))
+
+        return (train_x, train_y), (test_x, test_y)
+
+    def __init__(self, path):
+        self.path = os.path.join(path, 'linnaeus5')
+        if self.alreadyProcessed:
+            self.load()
+            return
+
+        (train_x, train_y),(test_x, test_y)  = self.load_data(self.path)
         train_y = utils.to_categorical(train_y, self.num_classes)
         test_y = utils.to_categorical(test_y, self.num_classes)
         self.train_x, self.train_y = train_x, train_y
